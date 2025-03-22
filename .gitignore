@@ -1,19 +1,75 @@
-*.iml
-.gradle
-/local.properties
+# 构建输出
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+output.json
+output-metadata.json
+
+# Gradle 文件
+.gradle/
+local.properties
+gradle-wrapper.jar
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deploymentTargetDropDown.xml
+/.idea/compiler.xml
+/.idea/misc.xml
+/.idea/gradle.xml
+/.idea/vcs.xml
+/.idea/.name
+/.idea/jarRepositories.xml
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
 
-# 项目排除路径
-/app/
-/gradle/
+# IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Android Studio
+/projectFilesBackup/
+.navigation/
+lint-report.html
+lint-report.xml
+
+# Keystore文件
+*.jks
+*.keystore
+keystore.properties
+
+# 外部原生构建文件夹
+.externalNativeBuild
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Freeline
+freeline.py
+freeline/
+freeline_project_description.json
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+
+# R8/ProGuard
+proguard/
+*.pro
+*.txt
+
+# 版本控制
+vcs.xml
+
+# 日志文件
+*.log

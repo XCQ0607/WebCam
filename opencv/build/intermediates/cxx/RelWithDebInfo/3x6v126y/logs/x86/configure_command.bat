@@ -1,0 +1,19 @@
+@echo off
+"D:\\Data\\Android_Studio\\SDK\\cmake\\3.31.6\\bin\\cmake.exe" ^
+  "-HE:\\Android_Studio\\WebCam\\opencv\\libcxx_helper" ^
+  "-DCMAKE_SYSTEM_NAME=Android" ^
+  "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" ^
+  "-DCMAKE_SYSTEM_VERSION=21" ^
+  "-DANDROID_PLATFORM=android-21" ^
+  "-DANDROID_ABI=x86" ^
+  "-DCMAKE_ANDROID_ARCH_ABI=x86" ^
+  "-DANDROID_NDK=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973" ^
+  "-DCMAKE_ANDROID_NDK=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973" ^
+  "-DCMAKE_TOOLCHAIN_FILE=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973\\build\\cmake\\android.toolchain.cmake" ^
+  "-DCMAKE_MAKE_PROGRAM=D:\\Data\\Android_Studio\\SDK\\cmake\\3.31.6\\bin\\ninja.exe" ^
+  "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=E:\\Android_Studio\\WebCam\\opencv\\build\\intermediates\\cxx\\RelWithDebInfo\\3x6v126y\\obj\\x86" ^
+  "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=E:\\Android_Studio\\WebCam\\opencv\\build\\intermediates\\cxx\\RelWithDebInfo\\3x6v126y\\obj\\x86" ^
+  "-DCMAKE_BUILD_TYPE=RelWithDebInfo" ^
+  "-BE:\\Android_Studio\\WebCam\\opencv\\.cxx\\RelWithDebInfo\\3x6v126y\\x86" ^
+  -GNinja ^
+  "-DANDROID_STL=c++_shared"

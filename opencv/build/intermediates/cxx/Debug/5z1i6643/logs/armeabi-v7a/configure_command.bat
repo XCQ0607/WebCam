@@ -1,0 +1,19 @@
+@echo off
+"D:\\Data\\Android_Studio\\SDK\\cmake\\3.31.6\\bin\\cmake.exe" ^
+  "-HE:\\Android_Studio\\WebCam\\opencv\\libcxx_helper" ^
+  "-DCMAKE_SYSTEM_NAME=Android" ^
+  "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" ^
+  "-DCMAKE_SYSTEM_VERSION=21" ^
+  "-DANDROID_PLATFORM=android-21" ^
+  "-DANDROID_ABI=armeabi-v7a" ^
+  "-DCMAKE_ANDROID_ARCH_ABI=armeabi-v7a" ^
+  "-DANDROID_NDK=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973" ^
+  "-DCMAKE_ANDROID_NDK=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973" ^
+  "-DCMAKE_TOOLCHAIN_FILE=D:\\Data\\Android_Studio\\SDK\\ndk\\27.0.12077973\\build\\cmake\\android.toolchain.cmake" ^
+  "-DCMAKE_MAKE_PROGRAM=D:\\Data\\Android_Studio\\SDK\\cmake\\3.31.6\\bin\\ninja.exe" ^
+  "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=E:\\Android_Studio\\WebCam\\opencv\\build\\intermediates\\cxx\\Debug\\5z1i6643\\obj\\armeabi-v7a" ^
+  "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=E:\\Android_Studio\\WebCam\\opencv\\build\\intermediates\\cxx\\Debug\\5z1i6643\\obj\\armeabi-v7a" ^
+  "-DCMAKE_BUILD_TYPE=Debug" ^
+  "-BE:\\Android_Studio\\WebCam\\opencv\\.cxx\\Debug\\5z1i6643\\armeabi-v7a" ^
+  -GNinja ^
+  "-DANDROID_STL=c++_shared"
