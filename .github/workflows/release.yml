@@ -9,7 +9,7 @@ on:
         required: false
         type: choice
         options:
-          - ''
+          - 'default'
           - tag_only
           - release
   
@@ -76,10 +76,10 @@ jobs:
       # 创建标签
       - name: 创建 Git 标签
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "${{ secrets.GIT_USER_EMAIL }}"
+          git config --local user.name "${{ secrets.GIT_USER_NAME }}"
           git tag -a ${{ env.VERSION }} -m "${{ env.DESCRIPTION }}"
-          git push origin ${{ env.VERSION }}
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git ${{ env.VERSION }}
           echo "已创建标签: ${{ env.VERSION }}"
       
       # 如果模式是 release，则创建 GitHub Release
@@ -94,4 +94,4 @@ jobs:
           prerelease: false
           files: build/build-info.txt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} 
