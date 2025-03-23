@@ -1,32 +1,65 @@
 package com.kust.webcam.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kust.webcam.domain.viewmodel.CameraViewModel
 import com.kust.webcam.ui.components.BrightnessContrastControls
+import com.kust.webcam.ui.components.CameraInfoDialog
+import com.kust.webcam.ui.components.ConnectionSettingsCard
+import com.kust.webcam.ui.components.ConnectionStatusCard
 import com.kust.webcam.ui.components.FrameDurationLimitSelector
 import com.kust.webcam.ui.components.LampControl
+import com.kust.webcam.ui.components.LogDisplay
 import com.kust.webcam.ui.components.QualitySlider
 import com.kust.webcam.ui.components.ResolutionSelector
 import com.kust.webcam.ui.components.SettingsDivider
 import com.kust.webcam.ui.components.SpecialEffectSelector
 import com.kust.webcam.ui.components.SwitchSetting
 import com.kust.webcam.ui.components.WhiteBalanceModeSelector
-import com.kust.webcam.ui.components.CameraInfoDialog
-import com.kust.webcam.ui.components.ConnectionSettingsCard
-import com.kust.webcam.ui.components.ConnectionStatusCard
-import com.kust.webcam.ui.components.LogDisplay
+import androidx.documentfile.provider.DocumentFile
+import com.kust.webcam.ui.components.FolderPickerDialog
+import android.Manifest
+import android.provider.Settings
+import android.content.pm.PackageManager
 
 @Composable
 fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
@@ -36,6 +69,34 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
     val cameraSettings by viewModel.cameraSettings.collectAsState()
     val lastError by viewModel.lastError.collectAsState()
     val operationLogs by viewModel.operationLogs.collectAsState()
+    val saveDirectoryState by viewModel.saveDirectory.collectAsState()
+    
+    // 滚动位置记忆
+    val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    var scrollPosition by rememberSaveable { mutableStateOf(0) }
+    
+    // 使用rememberSaveable保存目录信息，这样在配置更改时不会丢失
+    var displayedDirectory by rememberSaveable { mutableStateOf(saveDirectoryState) }
+    
+    // 当离开页面时保存滚动位置
+    LaunchedEffect(scrollState.value) {
+        scrollPosition = scrollState.value
+    }
+    
+    // 当重新进入页面时恢复滚动位置
+    LaunchedEffect(Unit) {
+        scrollState.scrollTo(scrollPosition)
+    }
+    
+    // 监听saveDirectoryState的变化并更新UI
+    LaunchedEffect(saveDirectoryState) {
+        displayedDirectory = saveDirectoryState
+        viewModel.showToast("UI更新 - saveDirectoryState变化检测: $saveDirectoryState")
+    }
+    
+    // 不需要使用registerForActivityResult，因为我们已经在MainActivity中处理了结果
+    // 这里只是显示UI并在点击时调用viewModel的方法
     
     val showCameraInfoDialog = remember { mutableStateOf(false) }
     
@@ -50,8 +111,9 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
+        // 连接信息与状态
         ConnectionSettingsCard(
             connectionSettings = connectionSettings,
             onUpdateSettings = { viewModel.updateConnectionSettings(it) },
@@ -63,6 +125,222 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
                 showCameraInfoDialog.value = true
             }
         )
+        
+        // 控制按钮区域
+        if (connectionStatus) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "摄像头控制",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Button(
+                            onClick = { viewModel.reboot() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "重启摄像头",
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text("重启摄像头")
+                        }
+                        
+                        Spacer(modifier = Modifier.padding(8.dp))
+                        
+                        OutlinedButton(
+                            onClick = { viewModel.clearPreferences() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "清除设置",
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text("清除设置")
+                        }
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 添加权限管理卡片到Card展示区域
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "权限管理",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 检查存储权限
+                val hasAllFilesPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Environment.isExternalStorageManager()
+                } else {
+                    context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "文件系统访问权限",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        
+                        Text(
+                            text = if (hasAllFilesPermission) "已授权" else "未授权",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasAllFilesPermission) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.error
+                        )
+                    }
+                    
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                                    intent.addCategory("android.intent.category.DEFAULT")
+                                    intent.data = Uri.parse("package:${context.packageName}")
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    // 如果上面的意图失败，打开应用通用设置页面
+                                    viewModel.openAppSettings(context)
+                                }
+                            } else {
+                                viewModel.openAppSettings(context)
+                            }
+                        }
+                    ) {
+                        Text(if (hasAllFilesPermission) "查看权限" else "请求权限")
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 
+                        "Android 11及以上需要管理所有文件权限来访问自定义目录" 
+                    else 
+                        "需要存储权限来保存照片到自定义目录",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 保存目录设置
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "存储设置",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "照片保存目录",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        
+                        Text(
+                            text = displayedDirectory,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    // 修改这里，使用自定义文件夹选择器
+                    var showFolderPicker by remember { mutableStateOf(false) }
+                    
+                    Button(
+                        onClick = { showFolderPicker = true }
+                    ) {
+                        Text("选择目录")
+                    }
+                    
+                    // 显示自定义文件夹选择器对话框
+                    if (showFolderPicker) {
+                        FolderPickerDialog(
+                            initialPath = displayedDirectory,
+                            onFolderSelected = { selectedPath ->
+                                // 更新UI显示
+                                displayedDirectory = selectedPath
+                                // 更新ViewModel
+                                viewModel.updateSaveDirectory(selectedPath)
+                                // 关闭对话框
+                                showFolderPicker = false
+                            },
+                            onDismiss = { showFolderPicker = false }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    Text(
+                        text = "注意: Android 10及以上版本会将照片保存到应用专用目录",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
         
         // 添加连接状态卡片
         ConnectionStatusCard(

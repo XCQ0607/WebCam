@@ -2,15 +2,10 @@ package com.kust.webcam.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.updateTransition
-import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,23 +13,19 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,24 +37,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
+/**
+ * 视频流页面的控制按钮组
+ */
 @Composable
-fun CameraControlButtons(
+fun StreamControlButtons(
     isStreaming: Boolean,
     onToggleStream: () -> Unit,
     onCapture: () -> Unit,
-    onReboot: () -> Unit,
-    onSavePreferences: () -> Unit,
-    onClearPreferences: () -> Unit,
-    onSaveToGallery: () -> Unit
+    onSaveToGallery: () -> Unit,
+    isCapturedImageAvailable: Boolean
 ) {
     val visibleState = remember { MutableTransitionState(false).apply { targetState = true } }
     
     AnimatedVisibility(
         visibleState = visibleState,
         enter = fadeIn(animationSpec = spring(dampingRatio = 0.6f)) + 
-               expandHorizontally(expandFrom = Alignment.CenterHorizontally),
+               expandVertically(expandFrom = Alignment.Bottom),
         exit = fadeOut()
     ) {
         Card(
@@ -71,8 +66,10 @@ fun CameraControlButtons(
                 .fillMaxWidth()
                 .padding(8.dp),
             shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            )
         ) {
             Row(
                 modifier = Modifier
@@ -81,11 +78,11 @@ fun CameraControlButtons(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 直播按钮（开始/停止）
-                AnimatedIconButton(
-                    onClick = onToggleStream,
+                // 视频按钮
+                StreamControlButton(
                     icon = if (isStreaming) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isStreaming) "停止视频" else "开始视频",
+                    label = if (isStreaming) "停止视频" else "开始视频",
+                    onClick = onToggleStream,
                     backgroundColor = if (isStreaming) 
                         MaterialTheme.colorScheme.errorContainer 
                     else 
@@ -93,44 +90,26 @@ fun CameraControlButtons(
                     contentColor = if (isStreaming) 
                         MaterialTheme.colorScheme.onErrorContainer 
                     else 
-                        MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(64.dp)
+                        MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
                 
                 // 拍照按钮
-                AnimatedIconButton(
-                    onClick = onCapture,
+                StreamControlButton(
                     icon = Icons.Filled.Camera,
-                    contentDescription = "拍照",
+                    label = "拍照",
+                    onClick = onCapture,
                     backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(56.dp)
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                // 刷新按钮
-                AnimatedIconButton(
-                    onClick = onReboot,
-                    icon = Icons.Filled.Refresh,
-                    contentDescription = "重启",
-                    backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.size(56.dp)
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
                 
                 // 保存到相册按钮
-                AnimatedIconButton(
-                    onClick = onSaveToGallery,
+                StreamControlButton(
                     icon = Icons.Filled.Save,
-                    contentDescription = "保存到相册",
-                    backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(56.dp)
+                    label = "保存",
+                    onClick = onSaveToGallery,
+                    backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    enabled = isCapturedImageAvailable
                 )
             }
         }
@@ -138,40 +117,59 @@ fun CameraControlButtons(
 }
 
 @Composable
-fun AnimatedIconButton(
+fun StreamControlButton(
+    icon: ImageVector,
+    label: String,
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
     backgroundColor: Color,
     contentColor: Color,
-    modifier: Modifier = Modifier
+    enabled: Boolean = true
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
-    val scale = if (isPressed) 0.9f else 1f
+    val alpha = if (enabled) 1f else 0.5f
+    val scale = if (isPressed && enabled) 0.9f else 1f
     
     Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(backgroundColor)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
-                onClick()
-            }
-            .scale(scale)
-            .graphicsLayer {
-                this.shadowElevation = if (isPressed) 0f else 8f
-            },
+        modifier = Modifier
+            .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = contentColor,
-            modifier = Modifier.size(24.dp)
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(backgroundColor.copy(alpha = alpha))
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled
+                ) {
+                    if (enabled) onClick()
+                }
+                .size(60.dp)
+                .scale(scale)
+                .graphicsLayer {
+                    this.shadowElevation = if (isPressed && enabled) 0f else 4f
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = contentColor.copy(alpha = alpha),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+        
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 64.dp)
+                .align(Alignment.Center)
         )
     }
 } 

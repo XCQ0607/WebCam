@@ -5,6 +5,11 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,8 +18,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,41 +33,81 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
 
 @Composable
 fun VideoStreamView(streamUrl: String) {
     val isLoading = remember { mutableStateOf(true) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val retryTrigger = remember { mutableStateOf(0) }
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isLoading.value) 0.3f else 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "contentAlpha"
+    )
+    
+    // 自动在5秒后隐藏加载指示器，无论流是否实际加载完成
+    LaunchedEffect(key1 = Unit) {
+        delay(5000)
+        isLoading.value = false
+    }
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            .clip(RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
         // 使用WebView加载MJPEG流
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(contentAlpha),
             factory = { context ->
                 WebView(context).apply {
+                    // 配置WebView
                     settings.apply {
+                        // 启用JavaScript
                         javaScriptEnabled = true
-                        useWideViewPort = true
+                        
+                        // 禁用缓存，确保实时加载
+                        cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                        
+                        // 确保视频自动播放
+                        mediaPlaybackRequiresUserGesture = false
+                        
+                        // 禁用缩放控制
+                        builtInZoomControls = false
+                        displayZoomControls = false
+                        
+                        // 设置WebView内容的显示方式
                         loadWithOverviewMode = true
+                        useWideViewPort = true
+                        
+                        // 允许加载混合内容（HTTP和HTTPS）
+                        mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        
+                        // 允许DOM存储API
                         domStorageEnabled = true
-                        allowFileAccess = true
-                        // 设置WebView的UA为移动设备UA
-                        userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36"
+                        
+                        // 对于一些ESP32摄像头服务器可能需要特定的UA
+                        // userAgentString = "ESP32CamViewer/1.0"
                     }
                     
-                    setWebViewClient(object : WebViewClient() {
+                    // 设置WebView背景为透明
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    
+                    // 设置WebViewClient处理页面加载事件
+                    webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                             super.onPageStarted(view, url, favicon)
                             isLoading.value = true
@@ -67,72 +116,21 @@ fun VideoStreamView(streamUrl: String) {
                         
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
-                            isLoading.value = false
-                            
-                            // 注入JavaScript来隐藏加载指示器
-                            view?.evaluateJavascript(
-                                """
-                                (function() {
-                                    // 立即隐藏所有加载指示器
-                                    var hideLoaders = function() {
-                                        // 隐藏ID为wait-settings的加载器
-                                        var waitSettings = document.getElementById('wait-settings');
-                                        if (waitSettings) {
-                                            waitSettings.style.display = 'none';
-                                        }
-                                        
-                                        // 隐藏所有.loader类的元素
-                                        var loaders = document.getElementsByClassName('loader');
-                                        for (var i = 0; i < loaders.length; i++) {
-                                            loaders[i].style.display = 'none';
-                                        }
-                                    };
-                                    
-                                    // 立即尝试隐藏
-                                    hideLoaders();
-                                    
-                                    // 监听stream元素加载完成
-                                    var streamImg = document.getElementById('stream');
-                                    if (streamImg) {
-                                        streamImg.onload = hideLoaders;
-                                    }
-                                    
-                                    // 定时检查并隐藏加载器，确保一定会被隐藏
-                                    var checkInterval = setInterval(function() {
-                                        hideLoaders();
-                                        // 5秒后停止检查
-                                        setTimeout(function() {
-                                            clearInterval(checkInterval);
-                                        }, 5000);
-                                    }, 500);
-                                })();
-                                """,
-                                null
-                            )
-                            
-                            // 延迟2秒后再次检查并隐藏所有加载指示器，确保处理了延迟加载的情况
-                            view?.postDelayed({
-                                view.evaluateJavascript(
-                                    """
-                                    (function() {
-                                        var waitSettings = document.getElementById('wait-settings');
-                                        if (waitSettings) {
-                                            waitSettings.style.display = 'none';
-                                        }
-                                        
-                                        var loaders = document.getElementsByClassName('loader');
-                                        for (var i = 0; i < loaders.length; i++) {
-                                            loaders[i].style.display = 'none';
-                                        }
-                                    })();
-                                    """,
-                                    null
-                                )
-                            }, 2000)
+                            // 页面加载完成后，1秒后隐藏加载指示器
+                            // 这给了内容一些时间来实际显示
+                            android.os.Handler(context.mainLooper).postDelayed({
+                                isLoading.value = false
+                            }, 1000)
                         }
                         
-                        @Deprecated("Deprecated in Java")
-                        @Suppress("DEPRECATION")
+                        override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                            super.onReceivedError(view, request, error)
+                            if (request?.isForMainFrame == true) {
+                                isLoading.value = false
+                                errorMessage.value = "加载视频流失败: ${error?.description}\n请检查网络连接和摄像头状态"
+                            }
+                        }
+                        
                         override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
                             super.onReceivedError(view, errorCode, description, failingUrl)
                             isLoading.value = false
@@ -194,7 +192,7 @@ fun VideoStreamView(streamUrl: String) {
                             
                             view?.loadDataWithBaseURL(streamUrl, iframeHtml, "text/html", "UTF-8", null)
                         }
-                    })
+                    }
                     
                     // 直接尝试加载原始视频流URL
                     loadUrl(streamUrl)
@@ -208,32 +206,53 @@ fun VideoStreamView(streamUrl: String) {
             }
         )
         
-        // 显示加载指示器或错误信息
-        if (isLoading.value) {
-            // 移除加载指示器(转圈)，让页面直接加载视频
-            // 此处不再显示CircularProgressIndicator
-        } else if (errorMessage.value != null) {
-            Column(
+        // 显示加载指示器
+        AnimatedVisibility(
+            visible = isLoading.value,
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(300))
+        ) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .padding(16.dp)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .size(48.dp)
+            )
+        }
+        
+        // 错误信息动画显示
+        AnimatedVisibility(
+            visible = errorMessage.value != null,
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(300))
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(16.dp)
             ) {
                 Text(
                     text = errorMessage.value ?: "",
-                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                     textAlign = TextAlign.Center
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Button(
-                    onClick = {
-                        isLoading.value = true
+                    onClick = { 
+                        retryTrigger.value = retryTrigger.value + 1
                         errorMessage.value = null
-                        retryTrigger.value += 1 // 触发重载
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Text("重试")
                 }
@@ -247,7 +266,8 @@ fun StillImageView(bitmap: Bitmap) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            .clip(RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
         Image(

@@ -34,7 +34,7 @@ import com.kust.webcam.data.model.SpecialEffect
 import com.kust.webcam.data.model.WbMode
 
 @Composable
-fun CameraControlButtons(
+fun LegacyCameraControls(
     onCapture: () -> Unit,
     onToggleStream: () -> Unit,
     isStreaming: Boolean,

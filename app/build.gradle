@@ -23,8 +23,8 @@ android {
         applicationId "com.kust.webcam"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -46,7 +46,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
@@ -129,4 +129,7 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.5.4"
     debugImplementation "androidx.compose.ui:ui-tooling:1.5.4"
     debugImplementation "androidx.compose.ui:ui-test-manifest:1.5.4"
+
+    // DocumentFile支持
+    implementation "androidx.documentfile:documentfile:1.0.1"
 } 

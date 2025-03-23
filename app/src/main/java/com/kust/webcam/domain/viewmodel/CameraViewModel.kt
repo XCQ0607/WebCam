@@ -2,12 +2,16 @@ package com.kust.webcam.domain.viewmodel
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kust.webcam.data.model.CameraSettings
@@ -50,7 +54,11 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     // 最后保存的图片URI
     private val _lastSavedImageUri = MutableStateFlow<Uri?>(null)
     val lastSavedImageUri = _lastSavedImageUri.asStateFlow()
-
+    
+    // 保存目录设置
+    private val _saveDirectory = MutableStateFlow(Environment.DIRECTORY_PICTURES + "/WebCam")
+    val saveDirectory = _saveDirectory.asStateFlow()
+    
     // 摄像头信息
     private val _cameraInfo = MutableStateFlow<String>("")
     val cameraInfo = _cameraInfo.asStateFlow()
@@ -120,6 +128,14 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
             }
         }
     }
+    
+    // 在离开界面时，静默停止视频流（不显示提示）
+    fun stopStreamSilently() {
+        _isStreaming.value = false
+        viewModelScope.launch {
+            stopStream()
+        }
+    }
 
     // 停止视频流并释放资源
     private suspend fun stopStream() {
@@ -141,6 +157,33 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     fun getStreamUrl(): String {
         return repository.getStreamUrl()
     }
+    
+    // 更新保存目录设置
+    fun updateSaveDirectory(directory: String) {
+        val oldDirectory = _saveDirectory.value
+        _saveDirectory.value = directory
+        repository.addLog("目录更新操作 - 原目录: $oldDirectory, 新目录: $directory")
+        repository.addLog("目录更新后检查 - 当前保存目录值: ${_saveDirectory.value}")
+        showToast("保存目录已更新: $directory")
+        
+        // 记录日志到控制台以便调试
+        println("WebCam日志: 目录已更新 - 从 $oldDirectory 到 $directory")
+    }
+
+    // 打开系统应用设置
+    fun openAppSettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            repository.addLog("打开应用设置")
+        } catch (e: Exception) {
+            showToast("无法打开应用设置")
+            repository.addLog("打开应用设置失败: ${e.message}")
+        }
+    }
 
     // 保存当前图片到相册
     fun saveImageToGallery(context: Context): Boolean {
@@ -152,7 +195,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
                 _lastSavedImageUri.value = imageUri
                 if (imageUri != null) {
                     repository.addLog("图片已保存到相册")
-                    showToast("图片已保存到相册: ${Environment.DIRECTORY_PICTURES}/WebCam")
+                    showToast("图片已保存到相册: ${saveDirectory.value}")
                 } else {
                     repository.addLog("保存图片失败")
                     showToast("保存图片失败")
@@ -167,8 +210,14 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     }
     
     private suspend fun saveBitmapToGallery(context: Context, bitmap: Bitmap): Uri? = withContext(Dispatchers.IO) {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "WebCam_$timestamp.jpg"
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+        val timestamp = dateFormat.format(Date())
+        
+        // 获取当前IP地址
+        val ipAddress = connectionSettings.value.ipAddress
+        
+        // 生成文件名: WebCam_日期_时间_IP地址
+        val fileName = "WebCam_${timestamp}_${ipAddress}.jpg"
         var uri: Uri? = null
         
         try {
@@ -177,7 +226,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
                 put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WebCam")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, saveDirectory.value)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
@@ -259,47 +308,44 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
                 sb.appendLine("📱 设备信息:")
                 val deviceKeys = listOf("名称", "固件版本", "程序大小", "MD5校验", "ESP SDK版本")
                 for (key in deviceKeys) {
-                    infoMap[key]?.let { sb.appendLine("$key: $it") }
+                    infoMap[key]?.let {
+                        sb.appendLine("• $key: $it")
+                    }
                 }
+                
+                sb.appendLine()
+                
+                // 相机参数部分
+                sb.appendLine("🔍 相机参数:")
+                val cameraKeys = listOf("分辨率", "图像质量", "帧率", "亮度", "对比度", "饱和度", "特效", "白平衡", "曝光控制")
+                for (key in cameraKeys) {
+                    infoMap[key]?.let {
+                        sb.appendLine("• $key: $it")
+                    }
+                }
+                
                 sb.appendLine()
                 
                 // 网络信息部分
                 sb.appendLine("🌐 网络信息:")
-                val networkKeys = listOf("模式", "SSID", "IP地址", "MAC地址")
+                val networkKeys = listOf("IP地址", "网关", "子网掩码", "MAC地址", "主机名", "SSID")
                 for (key in networkKeys) {
-                    infoMap[key]?.let { sb.appendLine("$key: $it") }
-                }
-                infoMap["HTTP端口"]?.let { sb.appendLine("HTTP端口: $it") }
-                sb.appendLine()
-                
-                // 系统信息部分
-                sb.appendLine("⚙️ 系统信息:")
-                val systemKeys = listOf("运行时间", "CPU频率", "MCU温度", "堆内存", "PSRAM")
-                for (key in systemKeys) {
-                    infoMap[key]?.let { sb.appendLine("$key: $it") }
-                }
-                
-                // 添加视频流信息 (可能包含在一个字符串中)
-                infoMap.entries.find { it.key.contains("视频流") || it.value.contains("视频流") }?.let {
-                    sb.appendLine(it.key + ": " + it.value)
-                }
-                
-                // 添加SPIFFS文件系统信息
-                infoMap.entries.find { it.key.contains("SPIFFS") || it.value.contains("SPIFFS") }?.let {
-                    sb.appendLine(it.key + ": " + it.value)
+                    infoMap[key]?.let {
+                        sb.appendLine("• $key: $it")
+                    }
                 }
                 
                 return sb.toString()
             } catch (e: Exception) {
-                return "解析摄像头信息出错: ${e.message}\n\n原始信息:\n$htmlInfo"
+                return "解析摄像头信息失败: ${e.message}"
             }
         } else {
-            // 非HTML格式，直接返回
+            // 非HTML内容，直接返回
             return htmlInfo
         }
     }
     
-    // 从HTML中提取纯文本，保留合理的格式
+    // 从HTML中提取文本
     private fun extractTextFromHtml(html: String): String {
         return html
             // 移除脚本和样式
@@ -354,37 +400,38 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     // 恢复默认设置
     fun restoreDefaultSettings() {
         viewModelScope.launch {
-            val success = repository.restoreDefaultSettings()
-            if (success) {
-                showToast("已恢复默认设置")
-            } else {
-                showToast("恢复默认设置失败")
-            }
+            repository.restoreDefaultSettings()
+            showToast("恢复默认设置命令已发送")
         }
     }
 
     // 重启摄像头
     fun reboot() {
-        repository.reboot()
-        showToast("已发送重启命令")
+        viewModelScope.launch {
+            repository.reboot()
+            showToast("重启摄像头命令已发送")
+        }
     }
 
     // 保存偏好设置
     fun savePreferences() {
-        repository.savePreferences()
-        showToast("已发送保存设置命令")
+        viewModelScope.launch {
+            repository.savePreferences()
+            showToast("保存设置命令已发送")
+        }
     }
 
     // 清除偏好设置
     fun clearPreferences() {
-        repository.clearPreferences()
-        showToast("已发送清除设置命令")
+        viewModelScope.launch {
+            repository.clearPreferences()
+            showToast("清除设置命令已发送")
+        }
     }
 
     // 清除日志
     fun clearLogs() {
         repository.clearLogs()
-        showToast("已清除日志")
     }
 
     // 清除错误
@@ -393,7 +440,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     }
     
     // 显示Toast消息
-    private fun showToast(message: String) {
+    fun showToast(message: String) {
         _toastMessage.value = message
     }
     
@@ -428,16 +475,6 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
         if (index in presets.indices) {
             repository.updateConnectionSettings(presets[index])
             showToast("已加载预设连接")
-        }
-    }
-
-    // 无提示地停止视频流（用于页面切换时）
-    fun stopStreamSilently() {
-        if (_isStreaming.value) {
-            _isStreaming.value = false
-            viewModelScope.launch {
-                stopStream()
-            }
         }
     }
 } 

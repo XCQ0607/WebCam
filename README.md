@@ -3,8 +3,11 @@
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-orange.svg)](https://kotlinlang.org/)
 [![ESP32](https://img.shields.io/badge/Hardware-ESP32--CAM-blue.svg)](https://www.espressif.com/)
+[![Version](https://img.shields.io/badge/Version-1.0.1-brightgreen.svg)](https://github.com/XCQ0607/WebCam/releases)
 
 一个适用于ESP32-CAM的Android客户端应用，提供完整中文界面，用于控制和查看ESP32-CAM摄像头。
+
+[English Version (英文版)](README_EN.md)
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/05ba4ac0-875b-4078-804d-57612562aed4" width="300" alt="ESP32-CAM硬件">
@@ -15,17 +18,26 @@
 - **中文界面**：完全汉化的用户界面，适合中文用户使用
 - **实时视频流**：通过WiFi连接直接查看ESP32-CAM的实时视频流
 - **拍摄照片**：捕获高质量静态图像并保存至相册
+- **自定义存储**：可选择照片保存位置，支持创建新文件夹
 - **摄像头控制**：调整分辨率、亮度、对比度等参数
 - **灯光控制**：控制摄像头的LED灯
+- **权限管理**：直观的权限状态显示和一键申请功能
 - **多种连接方式**：支持直接连接ESP32-CAM的AP或通过局域网连接
 - **摄像头信息**：查看ESP32-CAM的详细系统信息
 - **设置保存**：保存和恢复摄像头设置
 
 ## 📱 应用截图
 
+### v1.0.0
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/7d14357d-a84a-4a0d-b09f-f575e7b40ee4" width="300" alt="视频流界面">
-  <img src="https://github.com/user-attachments/assets/e7d4858c-9236-410d-a4fd-446426dbd8ad" width="300" alt="设置界面">
+  <img src="https://github.com/user-attachments/assets/7d14357d-a84a-4a0d-b09f-f575e7b40ee4" width="300" alt="视频流界面 v1.0.0">
+  <img src="https://github.com/user-attachments/assets/e7d4858c-9236-410d-a4fd-446426dbd8ad" width="300" alt="设置界面 v1.0.0">
+</div>
+
+### v1.0.1
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/323e89de-0ae2-438d-98fb-9ef7389a73bd" width="300" alt="视频流界面 v1.0.1">
+  <img src="https://github.com/user-attachments/assets/116daf2d-ee16-4e02-a958-ce3a6ccee061" width="300" alt="设置界面 v1.0.1">
 </div>
 
 ## 🚀 快速开始
@@ -153,8 +165,10 @@ app/
 ## 🙏 致谢
 
 - [ESP32-CAM Webserver](https://github.com/easytarget/esp32-cam-webserver) - ESP32-CAM原始固件
+
+## 相关硬件
 - [XCQ0607/esp32-cam-webserver-HAN](https://github.com/XCQ0607/esp32-cam-webserver-HAN) - 汉化版ESP32-CAM固件
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) - Android现代UI工具包
+
 
 ## Star History
 

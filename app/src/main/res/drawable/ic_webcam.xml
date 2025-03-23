@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    
+    <!-- 背景圆 -->
+    <path
+        android:fillColor="#FF3F51B5"
+        android:pathData="M480,480m-400,0a400,400 0,1 1,800 0a400,400 0,1 1,-800 0" />
+    
+    <!-- 摄像头主体 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M400,320L560,320A40,40 0,0 1,600 360L600,600A40,40 0,0 1,560 640L400,640A40,40 0,0 1,360 600L360,360A40,40 0,0 1,400 320z" />
+    
+    <!-- 摄像头镜头 -->
+    <path
+        android:fillColor="#FF3F51B5"
+        android:pathData="M480,480m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
+    
+    <!-- 闪光灯 -->
+    <path
+        android:fillColor="#FFFF9800"
+        android:pathData="M520,360m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+    
+    <!-- 支架 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M460,640L500,640L500,700L460,700z" />
+    
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M420,700L540,700L540,720L420,720z" />
+</vector> 
