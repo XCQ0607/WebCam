@@ -57,9 +57,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kust.webcam.domain.viewmodel.CameraViewModel
 import com.kust.webcam.ui.components.CameraControlButtons
 import com.kust.webcam.ui.components.PermissionDialog
-import com.kust.webcam.ui.components.StillImageView
 import com.kust.webcam.ui.components.StoragePermissionTextProvider
 import com.kust.webcam.ui.components.VideoStreamView
+import com.kust.webcam.ui.components.StillImageView
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import androidx.activity.ComponentActivity
 
 @Composable
 fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
@@ -166,7 +174,11 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                 ) {
                     if (connectionStatus) {
                         if (isStreaming) {
-                            VideoStreamView(streamUrl = viewModel.getStreamUrl())
+                            VideoStreamView(
+                                streamUrl = viewModel.getStreamUrl(),
+                                isStreaming = isStreaming,
+                                rotation = 0
+                            )
                         } else if (capturedImage != null) {
                             StillImageView(bitmap = capturedImage!!)
                         } else {
@@ -257,8 +269,7 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                                     },
                                     icon = Icons.Filled.Save,
                                     label = "保存",
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                    enabled = capturedImage != null
+                                    color = MaterialTheme.colorScheme.tertiary
                                 )
                             }
                         }
@@ -278,21 +289,24 @@ fun ControlButton(
     enabled: Boolean = true
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 8.dp)
     ) {
         IconButton(
             onClick = onClick,
+            enabled = enabled,
             modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = if (enabled) 1f else 0.5f)),
-            enabled = enabled
+                .size(48.dp)
+                .background(
+                    color = if (enabled) color else color.copy(alpha = 0.5f),
+                    shape = CircleShape
+                )
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = Color.White,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
         
@@ -300,50 +314,49 @@ fun ControlButton(
         
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.5f)
+            style = MaterialTheme.typography.labelMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface 
+                  else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
     }
 }
 
-// 辅助函数，检查是否有外部存储权限
-private fun hasExternalStoragePermission(context: android.content.Context): Boolean {
+// 检查是否有存储权限
+private fun hasExternalStoragePermission(context: Context): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        androidx.core.content.ContextCompat.checkSelfPermission(
+        ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.READ_MEDIA_IMAGES
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
     } else {
-        androidx.core.content.ContextCompat.checkSelfPermission(
+        ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }
 
-// 检查是否需要显示权限解释
-private fun shouldShowPermissionRationale(context: android.content.Context): Boolean {
-    return if (context is androidx.activity.ComponentActivity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            )
-        } else {
-            androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
-                context,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        }
-    } else false
+// 打开应用设置
+private fun openAppSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
 }
 
-// 打开应用设置页面
-private fun openAppSettings(context: android.content.Context) {
-    val intent = android.content.Intent(
-        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-        android.net.Uri.fromParts("package", context.packageName, null)
-    )
-    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(intent)
+// 检查是否应该显示权限说明
+private fun shouldShowPermissionRationale(context: Context): Boolean {
+    val activity = context as? ComponentActivity ?: return false
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ActivityCompat.shouldShowRequestPermissionRationale(
+            activity,
+            Manifest.permission.READ_MEDIA_IMAGES
+        )
+    } else {
+        ActivityCompat.shouldShowRequestPermissionRationale(
+            activity,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
+    }
 } 

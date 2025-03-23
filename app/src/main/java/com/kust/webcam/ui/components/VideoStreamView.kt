@@ -44,7 +44,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
 
 @Composable
-fun VideoStreamView(streamUrl: String) {
+fun WebVideoStreamView(streamUrl: String) {
     val isLoading = remember { mutableStateOf(true) }
     val errorMessage = remember { mutableStateOf<String?>(null) }
     val retryTrigger = remember { mutableStateOf(0) }

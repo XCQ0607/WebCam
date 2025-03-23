@@ -444,7 +444,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
         _toastMessage.value = message
     }
     
-    // 清除Toast消息（在UI层显示后调用）
+    // 清除Toast消息
     fun clearToastMessage() {
         _toastMessage.value = null
     }

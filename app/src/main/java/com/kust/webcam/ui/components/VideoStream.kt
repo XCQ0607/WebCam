@@ -130,9 +130,12 @@ fun VideoStreamView(
 @Composable
 fun StillImageView(
     bitmap: Bitmap?,
-    rotation: Int,
+    rotation: Int = 0,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val openCVHelper = remember { OpenCVHelper(context) }
+    
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -143,14 +146,16 @@ fun StillImageView(
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {
-            val rotationDegrees = when (rotation) {
-                90 -> 90f
-                -90 -> 270f
-                else -> 0f
+            val displayBitmap = if (rotation != 0 && openCVHelper.isInitialized()) {
+                // 使用OpenCV进行图像旋转
+                openCVHelper.rotateImage(bitmap, rotation)
+            } else {
+                // 回退到普通的Bitmap显示
+                bitmap
             }
             
             Image(
-                bitmap = bitmap.asImageBitmap(),
+                bitmap = displayBitmap.asImageBitmap(),
                 contentDescription = "静态图像",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
