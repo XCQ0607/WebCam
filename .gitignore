@@ -73,3 +73,6 @@ vcs.xml
 
 # 日志文件
 *.log
+
+# 发布版本
+app/release

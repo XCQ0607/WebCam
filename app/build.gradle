@@ -8,6 +8,14 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        release {
+            storeFile file('C:\\Users\\Admin\\xcq_sign.keystore')
+            storePassword 'Xcq41693960'
+            keyAlias 'XCQ'
+            keyPassword 'Xcq41693960'
+        }
+    }
     namespace 'com.kust.webcam'
     compileSdk 34
 
@@ -24,10 +32,21 @@ android {
         }
     }
 
+    // 添加APK架构拆分配置
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+            universalApk true  // 同时生成一个包含所有架构的通用APK
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
@@ -46,6 +65,27 @@ android {
     packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+
+    // 设置输出APK的文件名格式
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def outputFile = output.outputFile
+            if (outputFile != null && outputFile.name.endsWith('.apk')) {
+                def fileName = "WebCam_v${defaultConfig.versionName}"
+                if (output.getFilter("ABI") != null) {
+                    fileName += "_${output.getFilter("ABI")}"
+                } else {
+                    fileName += "_universal"
+                }
+                if (variant.buildType.name == "release") {
+                    fileName += "_release.apk"
+                } else {
+                    fileName += "_debug.apk"
+                }
+                output.outputFileName = fileName
+            }
         }
     }
 }
