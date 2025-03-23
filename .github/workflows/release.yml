@@ -1,0 +1,108 @@
+name: 自动版本发布
+
+on:
+  # 手动触发工作流
+  workflow_dispatch:
+    inputs:
+      force_mode:
+        description: '强制模式覆盖 (留空使用 version.txt 中的设置)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - tag_only
+          - release
+  
+  # 当推送到主分支并且版本文件有变化时触发
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'version.txt'
+
+jobs:
+  process-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: 读取版本信息
+        id: version_info
+        run: |
+          VERSION=$(grep "version=" version.txt | cut -d'=' -f2)
+          MODE=$(grep "mode=" version.txt | cut -d'=' -f2)
+          DESCRIPTION=$(grep "description=" version.txt | cut -d'=' -f2- | sed 's/^=//')
+          
+          # 如果手动触发并指定了强制模式，则使用指定的模式
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ ! -z "${{ github.event.inputs.force_mode }}" ]; then
+            MODE="${{ github.event.inputs.force_mode }}"
+          fi
+          
+          echo "VERSION=v${VERSION}" >> $GITHUB_ENV
+          echo "MODE=${MODE}" >> $GITHUB_ENV
+          echo "DESCRIPTION=${DESCRIPTION}" >> $GITHUB_ENV
+          
+          echo "版本: v${VERSION}"
+          echo "模式: ${MODE}"
+          echo "描述: ${DESCRIPTION}"
+      
+      - name: 设置 JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      
+      # 构建应用
+      - name: 构建应用
+        run: |
+          # 这里替换为您的构建命令
+          # 例如: ./gradlew build
+          echo "正在构建应用 ${{ env.VERSION }}..."
+      
+      # 生成构建文件
+      - name: 生成构建文件
+        run: |
+          # 这里替换为您的打包命令
+          # 例如: ./gradlew assembleRelease bundleRelease
+          echo "正在生成构建文件..."
+          
+      # 上传构建产物
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-builds-${{ env.VERSION }}
+          path: |
+            # 指定您的构建产物路径
+            # 例如:
+            # app/build/outputs/apk/release/*.apk
+            # app/build/outputs/bundle/release/*.aab
+      
+      # 创建标签
+      - name: 创建 Git 标签
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a ${{ env.VERSION }} -m "${{ env.DESCRIPTION }}"
+          git push origin ${{ env.VERSION }}
+          echo "已创建标签: ${{ env.VERSION }}"
+      
+      # 如果模式是 release，则创建 GitHub Release
+      - name: 创建 Release
+        if: env.MODE == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: 发布 ${{ env.VERSION }}
+          body: ${{ env.DESCRIPTION }}
+          draft: false
+          prerelease: false
+          files: |
+            # 指定要附加到发布版本的文件
+            # 例如:
+            # app/build/outputs/apk/release/*.apk
+            # app/build/outputs/bundle/release/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

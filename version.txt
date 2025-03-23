@@ -1,0 +1,3 @@
+version=1.0.0
+mode=tag_only
+description=初始版本发布 
