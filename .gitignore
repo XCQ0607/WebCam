@@ -67,6 +67,8 @@ fastlane/readme.md
 proguard/
 *.pro
 *.txt
+# 不忽略 version.txt
+!version.txt
 
 # 版本控制
 vcs.xml

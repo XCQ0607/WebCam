@@ -75,10 +75,12 @@ jobs:
         with:
           name: app-builds-${{ env.VERSION }}
           path: |
-            # 指定您的构建产物路径
-            # 例如:
-            # app/build/outputs/apk/release/*.apk
-            # app/build/outputs/bundle/release/*.aab
+            # 将以下示例路径替换为您实际的构建输出路径
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+            # 如果没有生成文件，至少提供一个存在的文件路径
+            README.md
       
       # 创建标签
       - name: 创建 Git 标签
@@ -100,9 +102,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            # 指定要附加到发布版本的文件
-            # 例如:
-            # app/build/outputs/apk/release/*.apk
-            # app/build/outputs/bundle/release/*.aab
+            # 将以下示例路径替换为您实际要附加到发布版本的文件路径
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
