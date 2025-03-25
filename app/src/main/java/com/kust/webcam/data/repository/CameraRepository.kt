@@ -1,9 +1,12 @@
 package com.kust.webcam.data.repository
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.kust.webcam.data.model.CameraSettings
 import com.kust.webcam.data.model.ConnectionSettings
+import com.kust.webcam.utils.AppContextProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -374,6 +377,178 @@ class CameraRepository {
         } catch (e: Exception) {
             _lastError.value = "请求错误: ${e.message}"
             false
+        }
+    }
+
+    // 保存预设到持久化存储
+    suspend fun savePresetsToStorage(presets: List<ConnectionSettings>) = withContext(Dispatchers.IO) {
+        try {
+            addLog("开始保存预设配置...")
+            // 1. 使用SharedPreferences保存
+            val appContext = AppContextProvider.getContext()
+            val sharedPrefs = appContext.getSharedPreferences("webcam_preferences", Context.MODE_PRIVATE)
+            val editor = sharedPrefs.edit()
+            
+            val presetsCount = presets.size
+            addLog("即将保存 ${presetsCount} 个预设到SharedPreferences")
+            editor.putInt("presets_count", presetsCount)
+            
+            presets.forEachIndexed { index, preset ->
+                editor.putString("preset_${index}_name", preset.connectionName)
+                editor.putString("preset_${index}_ip", preset.ipAddress)
+                editor.putInt("preset_${index}_http_port", preset.httpPort)
+                editor.putInt("preset_${index}_stream_port", preset.streamPort)
+                addLog("保存预设 ${index+1}/${presetsCount} 到SharedPreferences: ${preset.connectionName}, IP: ${preset.ipAddress}")
+            }
+            editor.apply()
+            addLog("预设已保存到SharedPreferences")
+            
+            // 2. 同时保存到Android/data/包名/files/presets.json
+            try {
+                val packageName = appContext.packageName
+                val externalFilesDir = appContext.getExternalFilesDir(null)
+                if (externalFilesDir != null) {
+                    val presetFile = java.io.File(externalFilesDir, "presets.json")
+                    addLog("准备保存预设到文件: ${presetFile.absolutePath}")
+                    
+                    // 创建JSON格式的预设数据
+                    val presetsList = org.json.JSONArray()
+                    presets.forEach { preset ->
+                        val presetJson = org.json.JSONObject().apply {
+                            put("connectionName", preset.connectionName)
+                            put("ipAddress", preset.ipAddress)
+                            put("httpPort", preset.httpPort)
+                            put("streamPort", preset.streamPort)
+                        }
+                        presetsList.put(presetJson)
+                    }
+                    
+                    // 写入文件
+                    val jsonContent = presetsList.toString()
+                    presetFile.writeText(jsonContent)
+                    addLog("预设JSON内容: ${jsonContent.take(100)}${if(jsonContent.length > 100) "..." else ""}")
+                    addLog("成功保存预设到文件: ${presetFile.absolutePath}")
+                } else {
+                    addLog("无法获取外部文件目录，无法保存到JSON文件")
+                }
+            } catch (e: Exception) {
+                addLog("保存预设到外部文件失败: ${e.message}")
+                addLog("错误详情: ${e.stackTraceToString()}")
+            }
+            
+            addLog("成功保存${presetsCount}个预设到本地存储")
+        } catch (e: Exception) {
+            _lastError.value = "保存预设失败: ${e.message}"
+            addLog("保存预设失败: ${e.message}")
+            addLog("错误详情: ${e.stackTraceToString()}")
+        }
+    }
+    
+    // 从持久化存储加载预设
+    suspend fun loadPresetsFromStorage(): List<ConnectionSettings> = withContext(Dispatchers.IO) {
+        try {
+            val appContext = AppContextProvider.getContext()
+            addLog("▶▶▶ 开始尝试加载预设配置...")
+            
+            // 1. 尝试从外部存储加载
+            val externalFilesDir = appContext.getExternalFilesDir(null)
+            if (externalFilesDir != null) {
+                val presetFile = java.io.File(externalFilesDir, "presets.json")
+                addLog("▶▶▶ 检查配置文件: ${presetFile.absolutePath}")
+                
+                if (presetFile.exists()) {
+                    try {
+                        addLog("▶▶▶ 找到配置文件，开始解析...")
+                        val jsonText = presetFile.readText()
+                        addLog("▶▶▶ 配置文件内容长度: ${jsonText.length}字节")
+                        
+                        val jsonArray = org.json.JSONArray(jsonText)
+                        val presets = mutableListOf<ConnectionSettings>()
+                        
+                        addLog("▶▶▶ 配置文件包含 ${jsonArray.length()} 个预设")
+                        
+                        for (i in 0 until jsonArray.length()) {
+                            val presetJson = jsonArray.getJSONObject(i)
+                            val preset = ConnectionSettings(
+                                connectionName = presetJson.getString("connectionName"),
+                                ipAddress = presetJson.getString("ipAddress"),
+                                httpPort = presetJson.getInt("httpPort"),
+                                streamPort = presetJson.getInt("streamPort")
+                            )
+                            presets.add(preset)
+                            addLog("▶▶▶ 已加载预设 ${i+1}/${jsonArray.length()}: ${preset.connectionName}, IP: ${preset.ipAddress}")
+                        }
+                        
+                        // 确保默认预设存在
+                        if (presets.isEmpty()) {
+                            addLog("▶▶▶ 加载的预设列表为空，添加默认预设")
+                            presets.add(0, ConnectionSettings(connectionName = "默认"))
+                        } else if (presets[0].connectionName != "默认") {
+                            addLog("▶▶▶ 第一个预设不是默认预设，添加默认预设到首位")
+                            presets.add(0, ConnectionSettings(connectionName = "默认"))
+                        }
+                        
+                        addLog("▶▶▶ 从外部存储成功加载了${presets.size}个预设")
+                        return@withContext presets
+                    } catch (e: Exception) {
+                        addLog("▶▶▶ 从外部文件加载预设失败: ${e.message}，尝试从SharedPreferences加载")
+                        addLog("▶▶▶ 错误详情: ${e.stackTraceToString().take(200)}...")
+                    }
+                } else {
+                    addLog("▶▶▶ 配置文件不存在: ${presetFile.absolutePath}")
+                }
+            } else {
+                addLog("▶▶▶ 无法获取外部存储目录")
+            }
+            
+            // 2. 如果外部存储加载失败，尝试从SharedPreferences加载
+            addLog("▶▶▶ 开始从SharedPreferences加载预设...")
+            val sharedPrefs = appContext.getSharedPreferences("webcam_preferences", Context.MODE_PRIVATE)
+            
+            val presetsCount = sharedPrefs.getInt("presets_count", 0)
+            addLog("▶▶▶ SharedPreferences中有 ${presetsCount} 个预设")
+            
+            if (presetsCount == 0) {
+                // 如果没有保存的预设，返回默认列表
+                addLog("▶▶▶ SharedPreferences中没有预设，返回默认预设")
+                return@withContext listOf(ConnectionSettings(connectionName = "默认"))
+            }
+            
+            val presets = mutableListOf<ConnectionSettings>()
+            
+            for (i in 0 until presetsCount) {
+                val name = sharedPrefs.getString("preset_${i}_name", "") ?: ""
+                val ip = sharedPrefs.getString("preset_${i}_ip", "192.168.4.1") ?: "192.168.4.1"
+                val httpPort = sharedPrefs.getInt("preset_${i}_http_port", 80)
+                val streamPort = sharedPrefs.getInt("preset_${i}_stream_port", 81)
+                
+                val preset = ConnectionSettings(
+                    connectionName = name,
+                    ipAddress = ip,
+                    httpPort = httpPort,
+                    streamPort = streamPort
+                )
+                
+                presets.add(preset)
+                addLog("▶▶▶ 从SharedPreferences加载预设 ${i+1}/${presetsCount}: ${preset.connectionName}, IP: ${preset.ipAddress}")
+            }
+            
+            // 确保默认预设始终存在
+            if (presets.isEmpty()) {
+                addLog("▶▶▶ 从SharedPreferences加载的预设列表为空，添加默认预设")
+                presets.add(0, ConnectionSettings(connectionName = "默认"))
+            } else if (presets[0].connectionName != "默认") {
+                addLog("▶▶▶ 从SharedPreferences加载的第一个预设不是默认预设，添加默认预设到首位")
+                presets.add(0, ConnectionSettings(connectionName = "默认"))
+            }
+            
+            addLog("▶▶▶ 从SharedPreferences成功加载了${presets.size}个预设")
+            return@withContext presets
+        } catch (e: Exception) {
+            _lastError.value = "加载预设失败: ${e.message}"
+            addLog("▶▶▶ 加载预设失败: ${e.message}")
+            addLog("▶▶▶ 错误详情: ${e.stackTraceToString().take(200)}...")
+            return@withContext listOf(ConnectionSettings(connectionName = "默认"))
         }
     }
 }

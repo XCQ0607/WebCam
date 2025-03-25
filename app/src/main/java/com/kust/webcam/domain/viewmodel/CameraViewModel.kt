@@ -31,8 +31,11 @@ import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.app.Application
+import android.os.Handler
+import android.os.Looper
 
-class CameraViewModel(private val repository: CameraRepository = CameraRepository()) : ViewModel() {
+class CameraViewModel(val repository: CameraRepository = CameraRepository()) : ViewModel() {
 
     // 连接设置
     val connectionSettings = repository.connectionSettings
@@ -70,9 +73,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     // 预设连接
     val _savedConnections = MutableStateFlow<List<ConnectionSettings>>(
         listOf(
-            ConnectionSettings(),
-            ConnectionSettings(ipAddress = "192.168.1.1", connectionName = "本地网络"),
-            ConnectionSettings(ipAddress = "192.168.43.1", connectionName = "热点网络")
+            ConnectionSettings(connectionName = "默认")
         )
     )
     val savedConnections = _savedConnections.asStateFlow()
@@ -441,6 +442,12 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     // 显示Toast消息
     fun showToast(message: String) {
         _toastMessage.value = message
+        // 确保200ms后清空消息，避免被其他系统消息替换
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (_toastMessage.value == message) {
+                _toastMessage.value = null
+            }
+        }, 3000) // 3秒后清空，确保用户有足够时间看到
     }
     
     // 清除Toast消息
@@ -457,23 +464,111 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
         if (existingIndex >= 0) {
             currentPresets[existingIndex] = current
         } else {
-            // 如果预设超过3个，则替换最后一个
-            if (currentPresets.size >= 3) {
-                currentPresets[2] = current
-            } else {
-                currentPresets.add(current)
+            // 如果预设超过5个，则移除最后一个
+            if (currentPresets.size >= 5) {
+                currentPresets.removeAt(currentPresets.size - 1)
             }
+            currentPresets.add(current)
         }
         _savedConnections.value = currentPresets
         showToast("已保存当前连接")
+        
+        // 保存预设到本地存储
+        savePresetsToPersistentStorage()
+    }
+
+    // 保存预设到持久化存储
+    fun savePresetsToPersistentStorage() {
+        viewModelScope.launch {
+            repository.savePresetsToStorage(_savedConnections.value)
+        }
     }
 
     // 加载预设连接设置
     fun loadConnectionPreset(index: Int) {
         val presets = _savedConnections.value
         if (index in presets.indices) {
-            repository.updateConnectionSettings(presets[index])
-            showToast("已加载预设连接")
+            val selectedPreset = presets[index]
+            // 添加详细日志
+            repository.addLog("开始加载预设[${index}]: ${selectedPreset.connectionName}")
+            
+            // 这里直接更新repository中的connectionSettings
+            repository.updateConnectionSettings(selectedPreset)
+            
+            // 添加更多日志，标记加载完成
+            repository.addLog("已加载预设: ${selectedPreset.connectionName}, IP: ${selectedPreset.ipAddress}")
+            
+            // 显示确定的Toast提示
+            showToast("已加载预设: ${selectedPreset.connectionName}")
+        } else {
+            repository.addLog("加载预设失败: 索引${index}超出范围[0-${presets.size-1}]")
         }
+    }
+
+    // 加载默认连接配置
+    fun loadDefaultConnection() {
+        viewModelScope.launch {
+            addLog("▶▶▶ 正在加载默认连接配置...")
+            
+            if (_savedConnections.value.isEmpty()) {
+                addLog("▶▶▶ 没有可用的预设配置，使用硬编码的默认配置")
+                // 如果没有预设，就使用系统默认的
+                return@launch
+            }
+            
+            // 使用第一个预设作为默认配置
+            val defaultPreset = _savedConnections.value.first()
+            
+            addLog("▶▶▶ 使用第一个预设作为默认配置: ${defaultPreset.connectionName}, IP: ${defaultPreset.ipAddress}")
+            
+            // 更新连接设置
+            updateConnectionSettings(defaultPreset)
+            
+            // 清除当前画面
+            _capturedImage.value = null
+            
+            addLog("▶▶▶ 默认连接配置已加载")
+            
+            showToast("已加载默认配置: ${defaultPreset.connectionName}")
+        }
+    }
+    
+    // 从持久化存储加载预设
+    fun loadPresetsFromPersistentStorage() {
+        viewModelScope.launch {
+            addLog("▶▶▶ 开始从持久化存储加载预设配置...")
+            
+            try {
+                val loadedPresets = repository.loadPresetsFromStorage()
+                
+                if (loadedPresets.isNotEmpty()) {
+                    _savedConnections.value = loadedPresets
+                    addLog("▶▶▶ 成功加载 ${loadedPresets.size} 个预设配置")
+                    
+                    // 记录每个预设的名称
+                    loadedPresets.forEachIndexed { index, preset ->
+                        addLog("▶▶▶ 预设 ${index+1}: '${preset.connectionName}', IP: ${preset.ipAddress}")
+                    }
+                    
+                    // 显示成功提示
+                    showToast("成功加载 ${loadedPresets.size} 个预设配置")
+                } else {
+                    addLog("▶▶▶ 未找到预设配置，使用默认配置")
+                    _savedConnections.value = listOf(ConnectionSettings(connectionName = "默认"))
+                    showToast("未找到预设配置，使用默认配置")
+                }
+            } catch (e: Exception) {
+                addLog("▶▶▶ 加载预设配置失败: ${e.message}")
+                showToast("加载预设配置失败")
+                _savedConnections.value = listOf(ConnectionSettings(connectionName = "默认"))
+            }
+        }
+    }
+
+    // 添加日志的便捷方法
+    fun addLog(message: String) {
+        // 同时输出到Android日志系统
+        android.util.Log.d("WebCam_ViewModel", message)
+        repository.addLog(message)
     }
 }

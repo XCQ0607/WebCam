@@ -11,11 +11,14 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -37,21 +40,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kust.webcam.domain.viewmodel.CameraViewModel
 import com.kust.webcam.ui.components.ConnectionSettingsCard
 import com.kust.webcam.ui.components.ConnectionStatusCard
 import com.kust.webcam.ui.components.LogDisplay
+import kotlinx.coroutines.delay
 
 data class TabItem(
     val title: String,
@@ -63,7 +71,17 @@ data class TabItem(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun MainScreen(viewModel: CameraViewModel = viewModel()) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var selectedTabIndex by remember { mutableIntStateOf(1) }
+    val operationLogs by viewModel.repository.operationLogs.collectAsState()
+    
+    // 日志通知状态
+    var showLogNotification by remember { mutableStateOf(true) }
+    
+    // 定时隐藏日志通知
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(5000) // 5秒后隐藏
+        showLogNotification = false
+    }
     
     val tabs = listOf(
         TabItem(
@@ -103,19 +121,45 @@ fun MainScreen(viewModel: CameraViewModel = viewModel()) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                tabs.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        icon = { 
-                            Icon(
-                                imageVector = if (selectedTabIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.title
-                            ) 
-                        },
-                        label = { Text(tab.title) }
-                    )
+            Column {
+                // 显示日志通知
+                AnimatedVisibility(
+                    visible = showLogNotification && operationLogs.isNotEmpty() && selectedTabIndex != 1,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "应用日志已记录，请在设置页面查看",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+                
+                NavigationBar {
+                    tabs.forEachIndexed { index, tab ->
+                        NavigationBarItem(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            icon = { 
+                                Icon(
+                                    imageVector = if (selectedTabIndex == index) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.title
+                                ) 
+                            },
+                            label = { Text(tab.title) }
+                        )
+                    }
                 }
             }
         }

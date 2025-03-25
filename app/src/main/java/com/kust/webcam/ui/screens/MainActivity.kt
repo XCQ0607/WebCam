@@ -14,8 +14,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.kust.webcam.domain.viewmodel.CameraViewModel
 import com.kust.webcam.ui.theme.WebCamTheme
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     
@@ -41,14 +44,37 @@ class MainActivity : ComponentActivity() {
         
         viewModel = ViewModelProvider(this)[CameraViewModel::class.java]
         
+        // 记录启动日志
+        viewModel.repository.addLog("应用启动，开始初始化...")
+        
+        // 1. 首先加载已保存的预设
+        viewModel.repository.addLog("第1步: 从存储加载预设列表")
+        viewModel.loadPresetsFromPersistentStorage()
+        
+        // 让预设加载完成有时间处理
+        viewModel.repository.addLog("短暂等待预设加载完成...")
+        
+        // 2. 设置默认连接配置 - 使用Activity的lifecycleScope
+        lifecycleScope.launch {
+            // 稍微延迟一下，确保预设加载已完成
+            delay(500)
+            viewModel.repository.addLog("第2步: 将默认预设加载到当前连接设置")
+            viewModel.loadDefaultConnection()
+        }
+        
+        // 3. 创建UI
+        viewModel.repository.addLog("第3步: 初始化用户界面")
         setContent {
             WebCamTheme {
                 MainScreen(viewModel = viewModel)
             }
         }
         
-        // 应用启动时请求权限
+        // 4. 请求所需权限
+        viewModel.repository.addLog("第4步: 请求所需权限")
         requestBasicStoragePermission()
+        
+        viewModel.repository.addLog("应用启动初始化完成")
     }
     
     // 请求基本存储权限

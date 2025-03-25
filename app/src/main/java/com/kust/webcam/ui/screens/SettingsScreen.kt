@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kust.webcam.domain.viewmodel.CameraViewModel
@@ -120,7 +122,11 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
             onTestConnection = { viewModel.testConnection() },
             connectionStatus = connectionStatus,
             savedConnections = savedConnectionsState,
-            onLoadPreset = { viewModel.updateConnectionSettings(it) },
+            onLoadPreset = { index -> 
+                viewModel.loadConnectionPreset(index)
+                // 不需要额外的操作，loadConnectionPreset会更新connectionSettings
+                // UI会自动响应StateFlow的变化
+            },
             onSavePreset = { viewModel.saveCurrentConnectionToPresets() },
             onRestoreDefaults = { viewModel.restoreDefaultSettings() },
             onViewCameraInfo = {
@@ -134,10 +140,90 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
                     currentPresets.removeAt(index)
                     // 更新ViewModel中的预设列表
                     viewModel._savedConnections.value = currentPresets
+                    // 保存更改到本地存储
+                    viewModel.savePresetsToPersistentStorage()
                     viewModel.showToast("已删除预设")
                 }
             }
         )
+        
+        // 添加手动加载配置按钮
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "配置加载",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "如果配置未自动加载，请使用下方按钮手动加载配置",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = {
+                        // 清空当前日志以便更清晰地查看加载过程
+                        viewModel.clearLogs()
+                        
+                        // 添加明显的日志标记
+                        viewModel.addLog("⭐⭐⭐ 开始手动加载配置...")
+                        
+                        // 先加载预设
+                        viewModel.loadPresetsFromPersistentStorage()
+                        
+                        // 立即加载默认连接
+                        viewModel.loadDefaultConnection()
+                        
+                        // 添加完成日志
+                        viewModel.addLog("⭐⭐⭐ 配置手动加载完成")
+                        
+                        // 显示Toast提示
+                        viewModel.showToast("正在加载配置，请查看日志")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .padding(horizontal = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "加载配置",
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "手动加载配置",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
         
         // 控制按钮区域
         if (connectionStatus) {

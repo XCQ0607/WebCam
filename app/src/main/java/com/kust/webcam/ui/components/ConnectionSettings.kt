@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -50,16 +51,17 @@ fun ConnectionSettingsCard(
     onTestConnection: () -> Unit,
     connectionStatus: Boolean,
     savedConnections: List<ConnectionSettings> = emptyList(),
-    onLoadPreset: (ConnectionSettings) -> Unit = {},
+    onLoadPreset: (Int) -> Unit = {},
     onSavePreset: () -> Unit = {},
     onRestoreDefaults: () -> Unit = {},
     onViewCameraInfo: () -> Unit = {},
     onDeletePreset: (Int) -> Unit = {}
 ) {
-    var ipAddress by remember { mutableStateOf(connectionSettings.ipAddress) }
-    var httpPort by remember { mutableStateOf(connectionSettings.httpPort.toString()) }
-    var streamPort by remember { mutableStateOf(connectionSettings.streamPort.toString()) }
-    var connectionName by remember { mutableStateOf(connectionSettings.connectionName) }
+    // 使用remember，但以connectionSettings作为key，当connectionSettings更新时会重置这些状态
+    var ipAddress by remember(connectionSettings) { mutableStateOf(connectionSettings.ipAddress) }
+    var httpPort by remember(connectionSettings) { mutableStateOf(connectionSettings.httpPort.toString()) }
+    var streamPort by remember(connectionSettings) { mutableStateOf(connectionSettings.streamPort.toString()) }
+    var connectionName by remember(connectionSettings) { mutableStateOf(connectionSettings.connectionName) }
     
     // 确认删除对话框状态
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
@@ -163,12 +165,21 @@ fun ConnectionSettingsCard(
                 )
                 
                 savedConnections.forEachIndexed { index, preset ->
+                    // 明确强调匹配所有三个参数，才认为是当前活动的配置
+                    val isCurrentlyActive = (preset.ipAddress == connectionSettings.ipAddress) &&
+                                            (preset.httpPort == connectionSettings.httpPort) &&
+                                            (preset.streamPort == connectionSettings.streamPort) &&
+                                            (preset.connectionName == connectionSettings.connectionName)
+                            
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            containerColor = if (isCurrentlyActive) 
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                     ) {
                         Row(
@@ -180,11 +191,26 @@ fun ConnectionSettingsCard(
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(
-                                    text = preset.connectionName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // 使用状态指示器显示是否是当前活动配置
+                                    if (isCurrentlyActive) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "当前使用",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    
+                                    Text(
+                                        text = preset.connectionName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 Text(
                                     text = "IP: ${preset.ipAddress}",
                                     style = MaterialTheme.typography.bodySmall,
@@ -195,7 +221,11 @@ fun ConnectionSettingsCard(
                             
                             // 加载按钮
                             TextButton(
-                                onClick = { onLoadPreset(preset) }
+                                onClick = { 
+                                    // 让预设名称在点击加载时直接显示在按钮旁
+                                    // 这样可以提供即时的视觉反馈
+                                    onLoadPreset(index)
+                                }
                             ) {
                                 Text("加载")
                             }
@@ -224,9 +254,9 @@ fun ConnectionSettingsCard(
             
             OutlinedTextField(
                 value = ipAddress,
-                onValueChange = { 
-                    ipAddress = it
-                    onUpdateSettings(connectionSettings.copy(ipAddress = it))
+                onValueChange = { newValue -> 
+                    ipAddress = newValue
+                    onUpdateSettings(connectionSettings.copy(ipAddress = newValue))
                 },
                 label = { Text("摄像头IP地址") },
                 modifier = Modifier
@@ -236,9 +266,9 @@ fun ConnectionSettingsCard(
             
             OutlinedTextField(
                 value = httpPort,
-                onValueChange = { 
-                    httpPort = it
-                    val port = it.toIntOrNull() ?: connectionSettings.httpPort
+                onValueChange = { newValue -> 
+                    httpPort = newValue
+                    val port = newValue.toIntOrNull() ?: connectionSettings.httpPort
                     onUpdateSettings(connectionSettings.copy(httpPort = port))
                 },
                 label = { Text("HTTP端口") },
@@ -250,9 +280,9 @@ fun ConnectionSettingsCard(
             
             OutlinedTextField(
                 value = streamPort,
-                onValueChange = { 
-                    streamPort = it
-                    val port = it.toIntOrNull() ?: connectionSettings.streamPort
+                onValueChange = { newValue -> 
+                    streamPort = newValue
+                    val port = newValue.toIntOrNull() ?: connectionSettings.streamPort
                     onUpdateSettings(connectionSettings.copy(streamPort = port))
                 },
                 label = { Text("视频流端口") },
@@ -264,9 +294,9 @@ fun ConnectionSettingsCard(
             
             OutlinedTextField(
                 value = connectionName,
-                onValueChange = { 
-                    connectionName = it
-                    onUpdateSettings(connectionSettings.copy(connectionName = it))
+                onValueChange = { newValue -> 
+                    connectionName = newValue
+                    onUpdateSettings(connectionSettings.copy(connectionName = newValue))
                 },
                 label = { Text("连接名称") },
                 modifier = Modifier
@@ -292,7 +322,7 @@ fun ConnectionSettingsCard(
                 Button(
                     onClick = {
                         // 检查是否是默认连接名称
-                        if (connectionSettings.connectionName == "ESP32摄像头") {
+                        if (connectionSettings.connectionName == "默认") {
                             // 提示用户更改连接名称
                             showDefaultNameWarning = true
                         } else {

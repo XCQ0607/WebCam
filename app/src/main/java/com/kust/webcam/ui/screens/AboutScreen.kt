@@ -155,7 +155,7 @@ fun AboutScreen(viewModel: CameraViewModel = viewModel()) {
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "版本：1.0.1",
+            text = "版本：1.0.2",
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center
         )

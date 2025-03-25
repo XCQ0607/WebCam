@@ -1,8 +1,14 @@
 package com.kust.webcam.ui.screens
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -10,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,10 +28,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Pause
@@ -32,7 +37,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,24 +54,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kust.webcam.domain.viewmodel.CameraViewModel
-import com.kust.webcam.ui.components.CameraControlButtons
-import com.kust.webcam.ui.components.PermissionDialog
-import com.kust.webcam.ui.components.StoragePermissionTextProvider
-import com.kust.webcam.ui.components.VideoStreamView
-import com.kust.webcam.ui.components.StillImageView
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import androidx.activity.ComponentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kust.webcam.domain.viewmodel.CameraViewModel
+import com.kust.webcam.ui.components.PermissionDialog
+import com.kust.webcam.ui.components.StillImageView
+import com.kust.webcam.ui.components.StoragePermissionTextProvider
+import com.kust.webcam.ui.components.VideoStreamView
+import kotlinx.coroutines.delay
 
 @Composable
 fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
@@ -75,10 +73,14 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
     val isStreaming by viewModel.isStreaming.collectAsState()
     val capturedImage by viewModel.capturedImage.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
+    val operationLogs by viewModel.repository.operationLogs.collectAsState()
     val context = LocalContext.current
     
     // 添加是否显示内容的状态，用于添加进入动画
     var contentVisible by remember { mutableStateOf(false) }
+    
+    // 添加日志提示状态
+    var showLogHint by remember { mutableStateOf(true) }
     
     // 权限相关
     var showPermissionDialog by remember { mutableStateOf(false) }
@@ -100,6 +102,9 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
     // 在组件首次渲染后，将内容设置为可见
     LaunchedEffect(Unit) {
         contentVisible = true
+        // 10秒后隐藏日志提示
+        kotlinx.coroutines.delay(10000)
+        showLogHint = false
     }
     
     // 添加DisposableEffect用于在用户离开屏幕时停止视频流
@@ -147,6 +152,58 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
+        // 添加日志提示卡片
+        AnimatedVisibility(
+            visible = showLogHint && operationLogs.isNotEmpty(),
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 8.dp)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Text(
+                        text = "应用日志",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    
+                    // 显示最新的3条日志
+                    Column(
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        operationLogs.take(3).forEach { log ->
+                            Text(
+                                text = log,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f),
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+                    
+                    Text(
+                        text = "应用日志已记录，请在设置页面查看",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+        
         AnimatedVisibility(
             visible = contentVisible,
             enter = fadeIn(animationSpec = tween(500)) + 
@@ -210,6 +267,12 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                         }
                     }
                     
+                    // 支持英文和中文的控制按钮标签
+                    val streamStartLabel = "开始视频"
+                    val streamStopLabel = "停止视频"
+                    val captureLabel = "拍照"
+                    val saveLabel = "保存"
+
                     // 控制按钮，放在画面底部
                     if (connectionStatus) {
                         Card(
@@ -233,7 +296,7 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                                 ControlButton(
                                     onClick = { viewModel.toggleStream() },
                                     icon = if (isStreaming) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    label = if (isStreaming) "停止视频" else "开始视频",
+                                    label = if (isStreaming) streamStopLabel else streamStartLabel,
                                     color = if (isStreaming) 
                                         MaterialTheme.colorScheme.error 
                                     else 
@@ -246,7 +309,7 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                                 ControlButton(
                                     onClick = { viewModel.captureStillImage() },
                                     icon = Icons.Filled.Camera,
-                                    label = "拍照",
+                                    label = captureLabel,
                                     color = MaterialTheme.colorScheme.secondary
                                 )
                                 
@@ -268,7 +331,7 @@ fun LiveStreamScreen(viewModel: CameraViewModel = viewModel()) {
                                         }
                                     },
                                     icon = Icons.Filled.Save,
-                                    label = "保存",
+                                    label = saveLabel,
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
                             }
