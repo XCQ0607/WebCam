@@ -92,7 +92,6 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
     // 监听saveDirectoryState的变化并更新UI
     LaunchedEffect(saveDirectoryState) {
         displayedDirectory = saveDirectoryState
-        viewModel.showToast("UI更新 - saveDirectoryState变化检测: $saveDirectoryState")
     }
     
     // 不需要使用registerForActivityResult，因为我们已经在MainActivity中处理了结果
@@ -114,15 +113,29 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
             .verticalScroll(scrollState)
     ) {
         // 连接信息与状态
+        val savedConnectionsState by viewModel.savedConnections.collectAsState()
         ConnectionSettingsCard(
             connectionSettings = connectionSettings,
             onUpdateSettings = { viewModel.updateConnectionSettings(it) },
             onTestConnection = { viewModel.testConnection() },
             connectionStatus = connectionStatus,
+            savedConnections = savedConnectionsState,
+            onLoadPreset = { viewModel.updateConnectionSettings(it) },
+            onSavePreset = { viewModel.saveCurrentConnectionToPresets() },
             onRestoreDefaults = { viewModel.restoreDefaultSettings() },
             onViewCameraInfo = {
                 viewModel.fetchCameraInfo()
                 showCameraInfoDialog.value = true
+            },
+            onDeletePreset = { index ->
+                // 创建一个新的预设列表，移除指定索引的预设
+                val currentPresets = savedConnectionsState.toMutableList()
+                if (index in currentPresets.indices && index > 0) { // 确保不删除默认预设
+                    currentPresets.removeAt(index)
+                    // 更新ViewModel中的预设列表
+                    viewModel._savedConnections.value = currentPresets
+                    viewModel.showToast("已删除预设")
+                }
             }
         )
         
@@ -510,4 +523,4 @@ fun SettingsScreen(viewModel: CameraViewModel = viewModel()) {
             )
         }
     }
-} 
+}

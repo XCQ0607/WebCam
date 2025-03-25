@@ -3,7 +3,7 @@
 [![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Language-Kotlin-orange.svg)](https://kotlinlang.org/)
 [![ESP32](https://img.shields.io/badge/Hardware-ESP32--CAM-blue.svg)](https://www.espressif.com/)
-[![Version](https://img.shields.io/badge/Version-1.0.1-brightgreen.svg)](https://github.com/XCQ0607/WebCam/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.2-brightgreen.svg)](https://github.com/XCQ0607/WebCam/releases)
 
 一个适用于ESP32-CAM的Android客户端应用，提供完整中文界面，用于控制和查看ESP32-CAM摄像头。
 
@@ -38,6 +38,11 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/323e89de-0ae2-438d-98fb-9ef7389a73bd" width="300" alt="视频流界面 v1.0.1">
   <img src="https://github.com/user-attachments/assets/116daf2d-ee16-4e02-a958-ce3a6ccee061" width="300" alt="设置界面 v1.0.1">
+</div>
+
+### v1.0.2
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/15939ecc-86ca-440f-9467-8010732542cb" width="300" alt="设置界面 v1.0.2">
 </div>
 
 ## 🚀 快速开始

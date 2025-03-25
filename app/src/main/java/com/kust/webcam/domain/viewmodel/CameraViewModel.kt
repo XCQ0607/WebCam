@@ -68,7 +68,7 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     val toastMessage = _toastMessage.asStateFlow()
 
     // 预设连接
-    private val _savedConnections = MutableStateFlow<List<ConnectionSettings>>(
+    val _savedConnections = MutableStateFlow<List<ConnectionSettings>>(
         listOf(
             ConnectionSettings(),
             ConnectionSettings(ipAddress = "192.168.1.1", connectionName = "本地网络"),
@@ -80,7 +80,6 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
     // 更新连接设置
     fun updateConnectionSettings(settings: ConnectionSettings) {
         repository.updateConnectionSettings(settings)
-        showToast("已更新连接设置")
     }
 
     // 测试连接
@@ -477,4 +476,4 @@ class CameraViewModel(private val repository: CameraRepository = CameraRepositor
             showToast("已加载预设连接")
         }
     }
-} 
+}

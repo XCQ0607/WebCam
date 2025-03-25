@@ -220,8 +220,8 @@ class CameraRepository {
     // 获取视频流URL
     fun getStreamUrl(): String {
         val settings = connectionSettings.value
-        // 从HTML信息中可以看出，视频流端口为81，直接使用根路径
-        return "http://${settings.ipAddress}:81/"
+        // 使用用户设置的视频流端口
+        return "http://${settings.ipAddress}:${settings.streamPort}/"
     }
 
     // 获取摄像头详细信息
@@ -376,4 +376,4 @@ class CameraRepository {
             false
         }
     }
-} 
+}
